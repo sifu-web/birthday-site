@@ -154,7 +154,7 @@ function startTypingMessage() {
   const message =
 `Dear Apu,
 
-Happy 18th Birthday!
+Happy 19th Birthday!
 
 May every moment of your life be filled with happiness, peace, success and endless blessings.
 
@@ -219,10 +219,12 @@ function startCountdown() {
 }
 
 /* ---------- Cake candles ---------- */
+const CANDLE_COUNT = 19;
+
 function buildCandles() {
   const row = document.getElementById('candles-row');
   const colors = ['#ff5d8f', '#7ee8fa', '#ffb703', '#b98cf2'];
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < CANDLE_COUNT; i++) {
     const c = document.createElement('div');
     c.className = 'candle';
     c.style.background = colors[i % colors.length];
@@ -251,7 +253,7 @@ function setupBlowButton() {
       launchConfettiBurst();
       launchFireworks();
       playMusic();
-    }, 18 * 60 + 200);
+    }, CANDLE_COUNT * 60 + 200);
 
     btn.style.opacity = '.6';
     btn.style.pointerEvents = 'none';
@@ -264,8 +266,20 @@ function buildGallery() {
   const photos = [
     'assets/images/photo1.jpg',
     'assets/images/photo2.jpg',
-    'assets/images/photo3.jpg'
+    'assets/images/photo3.jpg',
+    'assets/images/photo4.jpg',
+    'assets/images/photo5.jpg',
+    'assets/images/photo6.jpg',
+    'assets/images/photo7.jpg',
+    'assets/images/photo8.jpg',
+    'assets/images/photo9.jpg',
+    'assets/images/photo10.jpg',
+    'assets/images/photo11.jpg',
+    'assets/images/photo12.jpg',
+    'assets/images/photo13.jpg',
+    'assets/images/photo14.jpg'
   ];
+  const frag = document.createDocumentFragment();
   photos.forEach((src, i) => {
     const card = document.createElement('div');
     card.className = 'gallery-card';
@@ -277,8 +291,9 @@ function buildGallery() {
     img.width = 600;
     img.height = 600;
     card.appendChild(img);
-    grid.appendChild(card);
+    frag.appendChild(card);
   });
+  grid.appendChild(frag);
 }
 
 /* ---------- Envelope / memory letter ---------- */
@@ -339,7 +354,7 @@ function resizeCanvases() {
 
 function launchConfettiBurst() {
   const colors = ['#ffb703', '#ff5d8f', '#7ee8fa', '#b98cf2', '#3ddc97'];
-  for (let i = 0; i < 140; i++) {
+  for (let i = 0; i < 90; i++) {
     confettiParticles.push({
       x: window.innerWidth / 2,
       y: window.innerHeight * 0.4,
@@ -361,8 +376,8 @@ function launchFireworks() {
     const cx = window.innerWidth * (0.2 + Math.random() * 0.6);
     const cy = window.innerHeight * (0.2 + Math.random() * 0.35);
     const color = colors[Math.floor(Math.random() * colors.length)];
-    for (let i = 0; i < 46; i++) {
-      const angle = (Math.PI * 2 * i) / 46;
+    for (let i = 0; i < 32; i++) {
+      const angle = (Math.PI * 2 * i) / 32;
       const speed = 2.5 + Math.random() * 2.5;
       fireworkParticles.push({
         x: cx, y: cy,
@@ -372,7 +387,7 @@ function launchFireworks() {
       });
     }
     bursts++;
-    if (bursts >= 5) clearInterval(interval);
+    if (bursts >= 4) clearInterval(interval);
   }, 420);
 }
 

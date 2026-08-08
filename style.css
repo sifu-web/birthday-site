@@ -215,6 +215,7 @@ button{ font-family:inherit; }
 .bg-aurora{
   position:fixed; inset:-10%;
   z-index:0; pointer-events:none;
+  contain:strict;
   background:
     radial-gradient(ellipse at 15% 20%, rgba(255,183,3,.16), transparent 45%),
     radial-gradient(ellipse at 85% 10%, rgba(255,93,143,.18), transparent 40%),
@@ -227,14 +228,14 @@ button{ font-family:inherit; }
   0%,100%{ background-position:0% 0%; }
   50%{ background-position:100% 60%; }
 }
-.bg-stars{ position:fixed; inset:0; z-index:1; pointer-events:none; }
+.bg-stars{ position:fixed; inset:0; z-index:1; pointer-events:none; contain:strict; }
 .bg-stars span{
   position:absolute; width:2px; height:2px; border-radius:50%;
   background:#fff; opacity:.7;
   animation:twinkle 3s ease-in-out infinite;
 }
 @keyframes twinkle{ 0%,100%{ opacity:.15; } 50%{ opacity:.9; } }
-.bg-fireflies{ position:fixed; inset:0; z-index:1; pointer-events:none; }
+.bg-fireflies{ position:fixed; inset:0; z-index:1; pointer-events:none; contain:strict; }
 .bg-fireflies span{
   position:absolute; width:5px; height:5px; border-radius:50%;
   background:var(--accent);
@@ -283,6 +284,19 @@ button{ font-family:inherit; }
 
 .reveal-on-scroll{ opacity:0; transform:translateY(36px); transition:opacity .8s ease, transform .8s ease; }
 .reveal-on-scroll.in-view{ opacity:1; transform:translateY(0); }
+
+/* --- performance: skip layout/paint work for sections that are far
+   off-screen until they're about to be scrolled into view. Height
+   guesses below (contain-intrinsic-size) keep scrollbar/scroll-jump
+   stable before each section has actually rendered. Gallery is
+   excluded since 14 photos make its real height too variable to
+   guess safely. --- */
+.countdown-section, .cake-section, .letter-section{
+  content-visibility:auto;
+}
+.countdown-section{ contain-intrinsic-size:1000px 480px; }
+.cake-section{ contain-intrinsic-size:1000px 620px; }
+.letter-section{ contain-intrinsic-size:1000px 520px; }
 
 /* --- floating music button --- */
 .music-toggle{
