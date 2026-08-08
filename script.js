@@ -286,7 +286,6 @@ function buildGallery() {
     const img = document.createElement('img');
     img.src = src;
     img.alt = 'Memory photo ' + (i + 1);
-    img.loading = 'lazy';
     img.decoding = 'async';
     img.width = 600;
     img.height = 600;
