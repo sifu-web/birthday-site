@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Happy Birthday Kaniz Fatema Mowmita 🎂</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Playfair+Display:wght@600;700;800&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============================================================
+     SCREEN 1 — VERIFICATION PAGE (untouched functionality)
+     ============================================================ -->
+<section id="verify-screen">
+  <div class="container">
+
+    <h1 class="site-title">SiFUU 😀</h1>
+
+    <div class="card glass">
+      <p class="eyebrow">Taratari check koro</p>
+      <h2 class="page-heading">Verified Your manush Naki Kutta? 🙂</h2>
+      <div class="verify-box">
+        <button class="btn btn-primary" id="verify-btn">
+          <span class="btn-label">✅ Verify</span>
+        </button>
+        <div id="loading-box" class="loading-box" style="display:none;">
+          <div class="spinner"></div>
+          <span class="loading-text">Checking verification...</span>
+        </div>
+      </div>
+
+      <div class="result-status" id="verify-result" style="display:none;">
+        <div class="check-circle">
+          <svg viewBox="0 0 52 52" class="check-svg">
+            <circle class="check-circle-bg" cx="26" cy="26" r="24" fill="none"/>
+            <path class="check-mark" fill="none" d="M14 27l7 7 16-16"/>
+          </svg>
+        </div>
+        <p class="result-text">Tumi Manush Meybe? 🤡</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================
+     SCREEN 2 — CINEMATIC GOLDEN LOADER (bridges verify → site)
+     ============================================================ -->
+<section id="cinematic-loader" class="hidden">
+  <div class="loader-stage">
+    <div class="loader-ring ring-1"></div>
+    <div class="loader-ring ring-2"></div>
+    <div class="loader-ring ring-3"></div>
+    <div class="loader-core"></div>
+    <div class="loader-sparkles" id="loader-sparkles"></div>
+  </div>
+  <p class="loader-caption">Unwrapping something special<span class="dots"><span>.</span><span>.</span><span>.</span></span></p>
+</section>
+
+<!-- ============================================================
+     SCREEN 3 — BIRTHDAY WEBSITE
+     ============================================================ -->
+<main id="birthday-site" class="hidden">
+
+  <!-- Ambient background layers -->
+  <div class="bg-aurora" aria-hidden="true"></div>
+  <div class="bg-stars" id="bg-stars" aria-hidden="true"></div>
+  <div class="bg-fireflies" id="bg-fireflies" aria-hidden="true"></div>
+  <canvas id="confetti-canvas" aria-hidden="true"></canvas>
+  <canvas id="firework-canvas" aria-hidden="true"></canvas>
+
+  <!-- Floating music toggle -->
+  <button id="music-toggle" class="music-toggle" aria-label="Toggle birthday music">
+    <span class="music-icon">🎵</span>
+  </button>
+  <audio id="bg-music" loop preload="none">
+    <source src="assets/music/happy-birthday.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-balloons" id="hero-balloons" aria-hidden="true"></div>
+    <p class="hero-eyebrow reveal">A celebration, just for you</p>
+    <h1 class="hero-title reveal">
+      Happy <span class="gold-text">18th</span> Birthday
+    </h1>
+    <h2 class="hero-name reveal">Kaniz Fatema Mowmita 🎉</h2>
+    <p class="hero-sub reveal">16 August 2007 &nbsp;•&nbsp; With love from your family</p>
+    <div class="scroll-cue reveal" aria-hidden="true">
+      <span></span>
+      <p>scroll down</p>
+    </div>
+  </section>
+
+  <!-- WELCOME / TYPING MESSAGE -->
+  <section class="section message-section">
+    <div class="glass-panel reveal-on-scroll">
+      <p class="section-eyebrow">A message for Apu</p>
+      <p id="typing-message" class="typing-message"></p>
+      <span id="typing-cursor" class="typing-cursor">|</span>
+    </div>
+  </section>
+
+  <!-- COUNTDOWN -->
+  <section class="section countdown-section reveal-on-scroll">
+    <p class="section-eyebrow">Life in numbers</p>
+    <h3 class="section-title">18 Beautiful Years</h3>
+    <div class="countdown-grid">
+      <div class="stat-card glass-panel">
+        <span class="stat-label">Born On</span>
+        <span class="stat-value">16 Aug 2007</span>
+      </div>
+      <div class="stat-card glass-panel">
+        <span class="stat-label">Age Today</span>
+        <span class="stat-value" id="live-age">18 Years</span>
+      </div>
+      <div class="stat-card glass-panel">
+        <span class="stat-label">Next Birthday In</span>
+        <span class="stat-value" id="countdown-timer">--d --h --m --s</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3D CAKE -->
+  <section class="section cake-section reveal-on-scroll">
+    <p class="section-eyebrow">Make a wish</p>
+    <h3 class="section-title">Blow The Candles</h3>
+
+    <div class="cake-stage" id="cake-stage">
+      <div class="cake">
+        <div class="plate"></div>
+        <div class="cake-tier tier-3">
+          <div class="frosting-drip"></div>
+        </div>
+        <div class="cake-tier tier-2">
+          <div class="frosting-drip"></div>
+        </div>
+        <div class="cake-tier tier-1">
+          <div class="frosting-drip"></div>
+        </div>
+        <div class="candles" id="candles-row"></div>
+      </div>
+    </div>
+
+    <button id="blow-btn" class="btn btn-gold">🎂 Blow The Candles</button>
+    <p id="wish-text" class="wish-text hidden">✨ Wish granted. Happy Birthday, Apu! ✨</p>
+  </section>
+
+  <!-- PHOTO GALLERY -->
+  <section class="section gallery-section reveal-on-scroll">
+    <p class="section-eyebrow">Memories</p>
+    <h3 class="section-title">Photo Gallery</h3>
+    <div class="gallery-grid" id="gallery-grid"></div>
+  </section>
+
+  <!-- MEMORY LETTER -->
+  <section class="section letter-section reveal-on-scroll">
+    <p class="section-eyebrow">Sealed with love</p>
+    <h3 class="section-title">A Letter For You</h3>
+
+    <div class="envelope" id="envelope">
+      <div class="envelope-back"></div>
+      <div class="envelope-letter" id="envelope-letter">
+        <p>Dear Apu,</p>
+        <p>Happy 18th Birthday!</p>
+        <p>May every moment of your life be filled with happiness, peace, success and endless blessings. We sincerely pray that Allah grants you a long, healthy, joyful and beautiful life.</p>
+        <p>May every dream you have come true. May your future be bright and successful.</p>
+        <p>Stay happy. Stay healthy. Stay blessed.</p>
+        <p>Happy Birthday once again.</p>
+        <p class="letter-sign">With lots of prayers and respect,<br>Your Family ❤️</p>
+      </div>
+      <div class="envelope-flap"></div>
+      <div class="envelope-front"></div>
+      <div class="envelope-seal">✦</div>
+    </div>
+    <p class="envelope-hint">tap the envelope to open</p>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p class="footer-title">Happy 18th Birthday</p>
+    <p class="footer-name">Kaniz Fatema Mowmita</p>
+    <p class="footer-sub">Made with best wishes, for the best elder sister.</p>
+  </footer>
+
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
