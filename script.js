@@ -170,24 +170,40 @@ Happy Birthday once again.
 With lots of prayers and respect,
 Your Family ❤️`;
 
-  // rAF-driven typing, throttled by elapsed time instead of setTimeout,
-  // so it stays in sync with the browser's paint cycle and doesn't
-  // stack up timers (this was the main cause of the stutter/glitch
-  // while the message was appearing).
+  // The old version reset el.textContent to the full slice on every
+  // frame, which throws away and rebuilds the whole text node ~45
+  // times/sec — that's a full reflow of the panel every frame for
+  // ~15s straight, and combined with the panel's backdrop-filter blur
+  // (very expensive to repaint) it was heavy enough to eat the main
+  // thread and make touch-scroll feel stuck/glitchy while it ran.
+  //
+  // Fix: (1) only append the *new* characters instead of replacing
+  // the whole node, (2) drop the backdrop blur to a cheap solid
+  // background while typing and restore the glass blur once it's
+  // done, (3) batch updates at a lower, steadier rate instead of
+  // trying to touch the DOM every single animation frame.
+  const panel = el.closest('.glass-panel');
+  if (panel) panel.classList.add('typing-active');
+
   const msPerChar = 22;
+  const minBatchMs = 45; // ~22fps DOM writes instead of ~60fps
   let i = 0;
   let start = null;
+  let lastWrite = 0;
 
   function frame(ts) {
     if (start === null) start = ts;
     const elapsed = ts - start;
     const target = Math.min(message.length, Math.floor(elapsed / msPerChar));
-    if (target > i) {
+    if (target > i && (ts - lastWrite >= minBatchMs || target === message.length)) {
+      el.appendChild(document.createTextNode(message.slice(i, target)));
       i = target;
-      el.textContent = message.slice(0, i);
+      lastWrite = ts;
     }
     if (i < message.length) {
       requestAnimationFrame(frame);
+    } else if (panel) {
+      panel.classList.remove('typing-active');
     }
   }
   requestAnimationFrame(frame);
@@ -252,6 +268,10 @@ function setupBlowButton() {
       wishText.classList.remove('hidden');
       launchConfettiBurst();
       launchFireworks();
+      // blowing the candles always starts the song fresh from 0:00,
+      // even if it was already played/paused earlier via the toggle
+      const audio = document.getElementById('bg-music');
+      audio.currentTime = 0;
       playMusic();
     }, CANDLE_COUNT * 60 + 200);
 
@@ -260,7 +280,15 @@ function setupBlowButton() {
   });
 }
 
-/* ---------- Photo gallery ---------- */
+/* ---------- Photo gallery ----------
+   Photos here are full, uncompressed originals (several MB each), so
+   the browser's native loading="lazy" was firing a big batch of them
+   all at once the moment the tall gallery grid entered the viewport —
+   that read as "long empty gap, then everything pops in together".
+   Fixing this with our own IntersectionObserver so cards a bit further
+   down start fetching *before* they're actually visible (rootMargin),
+   and each photo fades in on its own as soon as it's ready, instead
+   of the whole grid waiting on the slowest image. */
 function buildGallery() {
   const grid = document.getElementById('gallery-grid');
   const photos = [
@@ -277,22 +305,65 @@ function buildGallery() {
     'assets/images/photo11.jpg',
     'assets/images/photo12.jpg',
     'assets/images/photo13.jpg',
-    'assets/images/photo14.jpg'
+    'assets/images/photo14.jpg',
+    'assets/images/photo15.jpg',
+    'assets/images/photo16.jpg',
+    'assets/images/photo17.jpg',
+    'assets/images/photo18.jpg',
+    'assets/images/photo19.jpg',
+    'assets/images/photo20.jpg',
+    'assets/images/photo21.jpg',
+    'assets/images/photo22.jpg',
+    'assets/images/photo23.jpg',
+    'assets/images/photo24.jpg',
+    'assets/images/photo25.jpg',
+    'assets/images/photo26.jpg',
+    'assets/images/photo27.jpg',
+    'assets/images/photo28.jpg',
+    'assets/images/photo29.jpg'
   ];
   const frag = document.createDocumentFragment();
+  const lazyImgs = [];
+
   photos.forEach((src, i) => {
     const card = document.createElement('div');
     card.className = 'gallery-card';
     const img = document.createElement('img');
-    img.src = src;
+    img.dataset.src = src;
     img.alt = 'Memory photo ' + (i + 1);
     img.decoding = 'async';
     img.width = 600;
     img.height = 600;
+    // first few load right away (they're near the top of the section,
+    // reachable within a couple of scroll flicks) — the rest wait for
+    // the observer below so we're not firing 20+ multi-MB requests
+    // simultaneously the instant the grid appears
+    if (i < 4) {
+      img.src = src;
+    } else {
+      lazyImgs.push(img);
+    }
     card.appendChild(img);
     frag.appendChild(card);
   });
   grid.appendChild(frag);
+
+  grid.querySelectorAll('img').forEach(img => {
+    if (img.complete) img.classList.add('loaded');
+    else img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
+  });
+
+  if (lazyImgs.length) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const img = entry.target;
+        img.src = img.dataset.src;
+        io.unobserve(img);
+      });
+    }, { rootMargin: '600px 0px', threshold: 0.01 });
+    lazyImgs.forEach(img => io.observe(img));
+  }
 }
 
 /* ---------- Envelope / memory letter ---------- */
@@ -303,10 +374,17 @@ function setupEnvelope() {
   });
 }
 
-/* ---------- Music toggle ---------- */
+/* ---------- Music toggle ----------
+   Song plays once per trigger, not on loop. A fresh page load/reload
+   always starts a brand-new <audio> element at 0:00, so "reload = plays
+   again from the start" is automatic. The one thing we guard against is
+   pressing play again after the clip has already finished — the audio
+   element stays "ended" with currentTime at the end, so play() alone
+   would be silent; we rewind to 0 first. */
 function setupMusicToggle() {
   const btn = document.getElementById('music-toggle');
   const audio = document.getElementById('bg-music');
+
   btn.addEventListener('click', () => {
     if (audio.paused) {
       playMusic();
@@ -315,11 +393,18 @@ function setupMusicToggle() {
       btn.classList.remove('playing');
     }
   });
+
+  audio.addEventListener('ended', () => {
+    btn.classList.remove('playing');
+  });
 }
 
 function playMusic() {
   const audio = document.getElementById('bg-music');
   const btn = document.getElementById('music-toggle');
+  if (audio.ended || audio.currentTime === audio.duration) {
+    audio.currentTime = 0;
+  }
   audio.play().then(() => btn.classList.add('playing')).catch(() => {
     /* autoplay blocked until user interacts — fine, button still works */
   });
@@ -329,6 +414,8 @@ function playMusic() {
 let confettiCtx, fireworkCtx, confettiCanvas, fireworkCanvas;
 let confettiParticles = [];
 let fireworkParticles = [];
+
+let canvasLoopRunning = false;
 
 function setupCanvases() {
   confettiCanvas = document.getElementById('confetti-canvas');
@@ -341,6 +428,16 @@ function setupCanvases() {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(resizeCanvases, 150);
   }, { passive: true });
+  // Don't start the draw loop until there's actually something to draw —
+  // running two full-viewport canvas clears/redraws forever at 60fps,
+  // even with zero particles, was the main drag on scroll smoothness
+  // across the whole site. The loop now starts on demand and stops
+  // itself once both particle arrays are empty again.
+}
+
+function ensureCanvasLoop() {
+  if (canvasLoopRunning) return;
+  canvasLoopRunning = true;
   requestAnimationFrame(animateCanvases);
 }
 
@@ -352,6 +449,7 @@ function resizeCanvases() {
 }
 
 function launchConfettiBurst() {
+  ensureCanvasLoop();
   const colors = ['#ffb703', '#ff5d8f', '#7ee8fa', '#b98cf2', '#3ddc97'];
   for (let i = 0; i < 90; i++) {
     confettiParticles.push({
@@ -369,6 +467,7 @@ function launchConfettiBurst() {
 }
 
 function launchFireworks() {
+  ensureCanvasLoop();
   const colors = ['#ffb703', '#ff5d8f', '#7ee8fa', '#b98cf2', '#3ddc97', '#ffffff'];
   let bursts = 0;
   const interval = setInterval(() => {
@@ -421,6 +520,16 @@ function animateCanvases() {
     fireworkCtx.globalAlpha = 1;
   });
   fireworkParticles = fireworkParticles.filter(p => p.life < p.maxLife);
+
+  if (confettiParticles.length === 0 && fireworkParticles.length === 0) {
+    // nothing left to animate — stop the loop instead of burning a
+    // frame every 16ms forever; launchConfettiBurst/launchFireworks
+    // will restart it next time they're called
+    confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    fireworkCtx.clearRect(0, 0, fireworkCanvas.width, fireworkCanvas.height);
+    canvasLoopRunning = false;
+    return;
+  }
 
   requestAnimationFrame(animateCanvases);
 }
