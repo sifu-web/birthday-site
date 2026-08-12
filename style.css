@@ -207,7 +207,7 @@ button{ font-family:inherit; }
 #birthday-site{
   position:relative;
   min-height:100vh;
-  overflow:hidden;
+  overflow-x:hidden;
 }
 #birthday-site.fade-in{ animation:siteFadeIn 1.1s ease forwards; }
 @keyframes siteFadeIn{ from{ opacity:0; transform:scale(1.02); } to{ opacity:1; transform:scale(1); } }
@@ -306,19 +306,16 @@ button{ font-family:inherit; }
   background:#1c1030f2;
 }
 
-/* --- performance: skip layout/paint work for sections that are far
-   off-screen until they're about to be scrolled into view. Height
-   guesses below (contain-intrinsic-size) keep scrollbar/scroll-jump
-   stable before each section has actually rendered. Gallery now
-   qualifies too — up to 29 cards is real weight to skip while
-   off-screen, and it starts locked (short) so an early guess is safe. --- */
-.countdown-section, .cake-section, .letter-section, .gallery-section{
-  content-visibility:auto;
-}
-.countdown-section{ contain-intrinsic-size:1000px 480px; }
-.cake-section{ contain-intrinsic-size:1000px 620px; }
-.letter-section{ contain-intrinsic-size:1000px 520px; }
-.gallery-section{ contain-intrinsic-size:1000px 900px; }
+/* NOTE: this page previously used `content-visibility:auto` on a few
+   sections as a paint-skipping optimisation. Removed — for a section
+   whose real content size changes at runtime (the gallery goes from
+   a small locked placeholder to ~29 full photo cards), the browser's
+   cached placeholder height and the real height fall out of sync as
+   you scroll it in and out of view. Combined with `overflow:hidden`
+   on the parent, that mismatch is exactly what caused the page to
+   jump around, leave blank space, and get stuck unable to scroll
+   back to the top. A few off-screen sections costing a bit more
+   paint is a much better trade than that. */
 
 /* --- performance: backdrop-filter blur is the single heaviest thing
    on this page for scroll smoothness on phones. Every blurred panel
