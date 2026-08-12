@@ -329,11 +329,23 @@ function buildGallery() {
     const card = document.createElement('div');
     card.className = 'gallery-card';
     const img = document.createElement('img');
-    img.dataset.src = src;
     img.alt = 'Memory photo ' + (i + 1);
     img.decoding = 'async';
     img.width = 600;
     img.height = 600;
+
+    // Bug fixed: listeners must be attached BEFORE a src is ever set.
+    // An <img> with no src is reported as "complete" by the browser
+    // (there's nothing pending to load), so checking img.complete on
+    // these before assigning dataset.src → real src was wrongly
+    // marking them "loaded" instantly and skipping the real 'load'
+    // listener — the photo would finish downloading fine (which is
+    // why long-press → preview showed it correctly) but the fade-in
+    // class was already applied with no image behind it, and nothing
+    // was left listening for the real load, so it stayed invisible.
+    img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
+    img.addEventListener('error', () => img.classList.add('loaded', 'broken'), { once: true });
+
     // first few load right away (they're near the top of the section,
     // reachable within a couple of scroll flicks) — the rest wait for
     // the observer below so we're not firing 20+ multi-MB requests
@@ -341,17 +353,13 @@ function buildGallery() {
     if (i < 4) {
       img.src = src;
     } else {
+      img.dataset.src = src;
       lazyImgs.push(img);
     }
     card.appendChild(img);
     frag.appendChild(card);
   });
   grid.appendChild(frag);
-
-  grid.querySelectorAll('img').forEach(img => {
-    if (img.complete) img.classList.add('loaded');
-    else img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
-  });
 
   if (lazyImgs.length) {
     const io = new IntersectionObserver((entries) => {
