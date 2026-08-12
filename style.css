@@ -214,7 +214,7 @@ button{ font-family:inherit; }
 
 /* --- ambient background layers --- */
 .bg-aurora{
-  position:fixed; inset:-10%;
+  position:fixed; inset:-15%;
   z-index:0; pointer-events:none;
   contain:strict;
   background:
@@ -223,11 +223,20 @@ button{ font-family:inherit; }
     radial-gradient(ellipse at 50% 90%, rgba(126,232,250,.12), transparent 45%),
     linear-gradient(160deg, var(--bg-1), var(--bg-3));
   background-size:180% 180%;
+  /* Was animating background-position, which forces the browser to
+     repaint this full-viewport (fixed) layer on every single frame —
+     on top of a fixed element, that repaint has to happen constantly
+     as the page scrolls too, which is exactly what read as scroll
+     jank/glitch on phones. transform is compositor-only (GPU), so
+     moving the layer this way costs effectively nothing during
+     scroll. inset:-15% gives enough overscan that translating within
+     that margin never reveals an edge. */
   animation:auroraShift 18s ease-in-out infinite;
+  will-change:transform;
 }
 @keyframes auroraShift{
-  0%,100%{ background-position:0% 0%; }
-  50%{ background-position:100% 60%; }
+  0%,100%{ transform:translate3d(0,0,0); }
+  50%{ transform:translate3d(-4%,3%,0); }
 }
 .bg-stars{ position:fixed; inset:0; z-index:1; pointer-events:none; contain:strict; }
 .bg-stars span{
@@ -300,15 +309,35 @@ button{ font-family:inherit; }
 /* --- performance: skip layout/paint work for sections that are far
    off-screen until they're about to be scrolled into view. Height
    guesses below (contain-intrinsic-size) keep scrollbar/scroll-jump
-   stable before each section has actually rendered. Gallery is
-   excluded since 14 photos make its real height too variable to
-   guess safely. --- */
-.countdown-section, .cake-section, .letter-section{
+   stable before each section has actually rendered. Gallery now
+   qualifies too — up to 29 cards is real weight to skip while
+   off-screen, and it starts locked (short) so an early guess is safe. --- */
+.countdown-section, .cake-section, .letter-section, .gallery-section{
   content-visibility:auto;
 }
 .countdown-section{ contain-intrinsic-size:1000px 480px; }
 .cake-section{ contain-intrinsic-size:1000px 620px; }
 .letter-section{ contain-intrinsic-size:1000px 520px; }
+.gallery-section{ contain-intrinsic-size:1000px 900px; }
+
+/* --- performance: backdrop-filter blur is the single heaviest thing
+   on this page for scroll smoothness on phones. Every blurred panel
+   has to resample whatever is moving behind it on every scroll frame
+   — fine for one or two panels, but this page has 3 stat cards, the
+   message panel, and (worst of all) up to 29 gallery cards all doing
+   it at once, which is exactly what showed up as "scroll glitchy/not
+   smooth". On narrower/phone screens we drop the blur and fall back
+   to a plain translucent fill — still reads as "glass", costs nothing
+   to scroll past. Wider screens (desktop/tablet, GPU to spare) keep
+   the real blur. */
+@media (max-width:820px){
+  .glass, .glass-panel, .gallery-card, .gallery-locked, .music-toggle{
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+    background:#1c1030e0;
+  }
+  .gallery-card{ background:#1c1030c9; }
+}
 
 /* --- floating music button --- */
 .music-toggle{
