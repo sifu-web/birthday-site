@@ -82,7 +82,7 @@ function initBirthdaySite() {
   startCountdown();
   buildCandles();
   setupBlowButton();
-  buildGallery();
+  renderGalleryLocked();
   setupEnvelope();
   setupMusicToggle();
   setupCanvases();
@@ -268,26 +268,51 @@ function buildCandles() {
 function setupBlowButton() {
   const btn = document.getElementById('blow-btn');
   const wishText = document.getElementById('wish-text');
+  const cake = document.getElementById('cake');
+  const windGust = document.getElementById('wind-gust');
   let blown = false;
 
   btn.addEventListener('click', () => {
     if (blown) return;
     blown = true;
 
-    document.querySelectorAll('.candle').forEach((c, idx) => {
-      setTimeout(() => c.classList.add('out'), idx * 60);
+    // Instant "breath" cue: a soft wind streak sweeps past the candles
+    // and the whole cake gives a little wobble, so the click reads as
+    // an actual blow rather than a light switch.
+    windGust.classList.add('active');
+    cake.classList.add('blowing');
+    setTimeout(() => windGust.classList.remove('active'), 750);
+
+    const candles = document.querySelectorAll('.candle');
+    const BEND_MS = 320; // must match .flameBend duration in CSS
+    candles.forEach((c, idx) => {
+      const delay = idx * 50;
+      // 1) flame bends hard in the wind, 2) then actually snuffs out + smokes
+      setTimeout(() => c.classList.add('blow-out'), delay);
+      setTimeout(() => c.classList.add('out'), delay + BEND_MS);
     });
 
+    const totalDelay = candles.length * 50 + BEND_MS + 250;
     setTimeout(() => {
+      cake.classList.remove('blowing');
+      cake.classList.add('granted');
+
       wishText.classList.remove('hidden');
+      // remove+re-add on next frame so the pop keyframes always restart
+      requestAnimationFrame(() => wishText.classList.add('pop'));
+
       launchConfettiBurst();
       launchFireworks();
+
       // blowing the candles always starts the song fresh from 0:00,
       // even if it was already played/paused earlier via the toggle
       const audio = document.getElementById('bg-music');
       audio.currentTime = 0;
       playMusic();
-    }, CANDLE_COUNT * 60 + 200);
+
+      // photos only start loading once the wish is granted
+      unlockGallery();
+    }, totalDelay);
 
     btn.style.opacity = '.6';
     btn.style.pointerEvents = 'none';
@@ -295,38 +320,71 @@ function setupBlowButton() {
 }
 
 /* ---------- Photo gallery ----------
-   Previous version hand-rolled lazy loading with an IntersectionObserver
-   + rootMargin, deferring each image's real src into a data-src
-   attribute until the observer said the card was near the viewport.
+   The gallery is locked until the "Blow The Candles" wish is granted —
+   before that, the grid area shows only a plain "Gallery" placeholder
+   (no images requested at all, so nothing sits there half-loading).
+   Once unlocked, every photo gets a real src immediately and leans on
+   the browser's own native `loading="lazy"` — that's implemented
+   inside the browser engine itself, so (unlike a hand-rolled
+   IntersectionObserver) it can never skip a fast scroll and leave a
+   photo permanently blank. The fade-in on 'load' plus a staggered
+   rise-in animation gives a smooth per-photo reveal once unlocked.
 
-   Bug: on a fast scroll (a normal phone flick, or jumping straight to
-   the bottom of a long page) the observer can skip straight past a
-   run of cards between two checks without ever reporting them as
-   intersecting. Since their real src was NEVER assigned in that case,
-   those photos stayed permanently blank — no request was even sent,
-   so no amount of waiting fixed it. This is exactly what showed up as
-   "pic gula load hoy na": a normal long-press on the broken box still
-   works fine because it's a perfectly valid <img> tag, just one that
-   was never told to load anything.
+   Photos are shown in a colour-matched order (computed once from each
+   photo's average colour) instead of their upload order, so
+   neighbouring cards blend into each other instead of clashing. */
+const PHOTO_ORDER = [
+  "photo1.jpg","photo19.jpg","photo20.jpg","photo13.jpg","photo12.jpg",
+  "photo14.jpg","photo11.jpg","photo15.jpg","photo17.jpg","photo8.jpg",
+  "photo16.jpg","photo4.jpg","photo9.jpg","photo7.jpg","photo3.jpg",
+  "photo6.jpg","photo29.jpg","photo23.jpg","photo24.jpg","photo22.jpg",
+  "photo21.jpg","photo25.jpg","photo5.jpg","photo10.jpg","photo18.jpg",
+  "photo26.jpg","photo2.jpg","photo28.jpg","photo27.jpg"
+];
 
-   Fix: every image gets a real src immediately, and we lean on the
-   browser's own native `loading="lazy"` instead of a custom observer.
-   Native lazy-loading is implemented inside the browser engine itself
-   — it is not a piece of app code that can "miss" a scroll, so no
-   image can ever end up permanently unloaded again. The fade-in on
-   'load' is kept for a smooth per-photo reveal. */
+let galleryUnlocked = false;
+
+function renderGalleryLocked() {
+  const grid = document.getElementById('gallery-grid');
+  grid.innerHTML = '';
+  const locked = document.createElement('div');
+  locked.className = 'gallery-locked';
+  locked.innerHTML = `
+    <span class="lock-icon">🔒</span>
+    <span class="lock-title">Gallery</span>
+    <span class="lock-hint">Blow the candles above to unlock the photos —
+      <button type="button" id="gallery-jump-btn">jump to the cake</button>
+    </span>`;
+  grid.appendChild(locked);
+
+  const jumpBtn = document.getElementById('gallery-jump-btn');
+  if (jumpBtn) {
+    jumpBtn.addEventListener('click', () => {
+      document.getElementById('cake-stage').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+}
+
+function unlockGallery() {
+  if (galleryUnlocked) return;
+  galleryUnlocked = true;
+  buildGallery();
+}
+
 function buildGallery() {
   const grid = document.getElementById('gallery-grid');
-  const TOTAL_PHOTOS = 29;
   const frag = document.createDocumentFragment();
 
-  for (let i = 1; i <= TOTAL_PHOTOS; i++) {
-    const src = 'assets/images/photo' + i + '.jpg';
+  PHOTO_ORDER.forEach((filename, i) => {
+    const src = 'assets/images/' + filename;
     const card = document.createElement('div');
     card.className = 'gallery-card';
+    // gentle stagger so photos rise in one after another instead of
+    // popping in all at once
+    card.style.setProperty('--card-delay', (Math.min(i, 12) * 0.05) + 's');
 
     const img = document.createElement('img');
-    img.alt = 'Memory photo ' + i;
+    img.alt = 'Memory photo ' + (i + 1);
     img.decoding = 'async';
     img.width = 600;
     img.height = 600;
@@ -340,13 +398,23 @@ function buildGallery() {
     // immediately); everything else uses the browser's native lazy
     // loading — reliable under any scroll speed, unlike a hand-rolled
     // IntersectionObserver.
-    img.loading = i <= 4 ? 'eager' : 'lazy';
+    img.loading = i < 4 ? 'eager' : 'lazy';
     img.src = src;
 
     card.appendChild(img);
     frag.appendChild(card);
-  }
+  });
+
+  grid.innerHTML = '';
   grid.appendChild(frag);
+
+  // scroll down to the freshly unlocked photos so the reveal is seen
+  const gallerySection = document.querySelector('.gallery-section');
+  if (gallerySection) {
+    setTimeout(() => {
+      gallerySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 900);
+  }
 }
 
 /* ---------- Envelope / memory letter ---------- */
