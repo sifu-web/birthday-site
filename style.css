@@ -209,8 +209,14 @@ button{ font-family:inherit; }
   min-height:100vh;
   overflow-x:hidden;
 }
-#birthday-site.fade-in{ animation:siteFadeIn 1.1s ease forwards; }
-@keyframes siteFadeIn{ from{ opacity:0; transform:scale(1.02); } to{ opacity:1; transform:scale(1); } }
+#birthday-site.fade-in{ animation:siteFadeIn .8s ease forwards; }
+/* Opacity-only: a transform here (even scale(1) at rest) makes #birthday-site
+   a new containing block for every position:fixed descendant, so the aurora,
+   stars, fireflies, canvases, and music button all measure themselves against
+   this element instead of the viewport — inflating page height and forcing
+   constant repaint on scroll. Fading opacity alone gets the same entrance
+   feel without that side effect. */
+@keyframes siteFadeIn{ from{ opacity:0; } to{ opacity:1; } }
 
 /* --- ambient background layers --- */
 .bg-aurora{
