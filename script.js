@@ -134,7 +134,21 @@ function buildBalloons() {
   wrap.appendChild(frag);
 }
 
-/* ---------- Scroll reveal ---------- */
+/* ---------- Scroll reveal ----------
+   Bug: threshold: 0.15 requires 15% of the TARGET'S OWN total area to
+   be on-screen before it reveals. That's fine for a short card, but
+   the gallery section stacks 29 full-size photos — on a narrow phone
+   (single column) its total height can be 10,000px+, many times taller
+   than any viewport. 15% of that is thousands of pixels, which no
+   phone screen can ever show at once, so `in-view` was NEVER added —
+   the whole gallery section (heading + every photo) stayed at
+   opacity:0 forever, no matter how far you scrolled through it. This
+   is the deeper reason photos looked like they "don't load": the
+   images were fine, their entire section was invisible.
+
+   Fix: trigger off the viewport edge instead of a % of the element's
+   own area, so it works the same regardless of how tall the section
+   is — reveal as soon as the section starts entering the screen. */
 function setupScrollReveal() {
   const targets = document.querySelectorAll('.reveal-on-scroll');
   const io = new IntersectionObserver((entries) => {
@@ -144,7 +158,7 @@ function setupScrollReveal() {
         io.unobserve(entry.target);
       }
     });
-  }, { threshold: 0.15 });
+  }, { threshold: 0, rootMargin: '0px 0px -10% 0px' });
   targets.forEach(t => io.observe(t));
 }
 
@@ -281,97 +295,58 @@ function setupBlowButton() {
 }
 
 /* ---------- Photo gallery ----------
-   Photos here are full, uncompressed originals (several MB each), so
-   the browser's native loading="lazy" was firing a big batch of them
-   all at once the moment the tall gallery grid entered the viewport —
-   that read as "long empty gap, then everything pops in together".
-   Fixing this with our own IntersectionObserver so cards a bit further
-   down start fetching *before* they're actually visible (rootMargin),
-   and each photo fades in on its own as soon as it's ready, instead
-   of the whole grid waiting on the slowest image. */
+   Previous version hand-rolled lazy loading with an IntersectionObserver
+   + rootMargin, deferring each image's real src into a data-src
+   attribute until the observer said the card was near the viewport.
+
+   Bug: on a fast scroll (a normal phone flick, or jumping straight to
+   the bottom of a long page) the observer can skip straight past a
+   run of cards between two checks without ever reporting them as
+   intersecting. Since their real src was NEVER assigned in that case,
+   those photos stayed permanently blank — no request was even sent,
+   so no amount of waiting fixed it. This is exactly what showed up as
+   "pic gula load hoy na": a normal long-press on the broken box still
+   works fine because it's a perfectly valid <img> tag, just one that
+   was never told to load anything.
+
+   Fix: every image gets a real src immediately, and we lean on the
+   browser's own native `loading="lazy"` instead of a custom observer.
+   Native lazy-loading is implemented inside the browser engine itself
+   — it is not a piece of app code that can "miss" a scroll, so no
+   image can ever end up permanently unloaded again. The fade-in on
+   'load' is kept for a smooth per-photo reveal. */
 function buildGallery() {
   const grid = document.getElementById('gallery-grid');
-  const photos = [
-    'assets/images/photo1.jpg',
-    'assets/images/photo2.jpg',
-    'assets/images/photo3.jpg',
-    'assets/images/photo4.jpg',
-    'assets/images/photo5.jpg',
-    'assets/images/photo6.jpg',
-    'assets/images/photo7.jpg',
-    'assets/images/photo8.jpg',
-    'assets/images/photo9.jpg',
-    'assets/images/photo10.jpg',
-    'assets/images/photo11.jpg',
-    'assets/images/photo12.jpg',
-    'assets/images/photo13.jpg',
-    'assets/images/photo14.jpg',
-    'assets/images/photo15.jpg',
-    'assets/images/photo16.jpg',
-    'assets/images/photo17.jpg',
-    'assets/images/photo18.jpg',
-    'assets/images/photo19.jpg',
-    'assets/images/photo20.jpg',
-    'assets/images/photo21.jpg',
-    'assets/images/photo22.jpg',
-    'assets/images/photo23.jpg',
-    'assets/images/photo24.jpg',
-    'assets/images/photo25.jpg',
-    'assets/images/photo26.jpg',
-    'assets/images/photo27.jpg',
-    'assets/images/photo28.jpg',
-    'assets/images/photo29.jpg'
-  ];
+  const TOTAL_PHOTOS = 29;
   const frag = document.createDocumentFragment();
-  const lazyImgs = [];
 
-  photos.forEach((src, i) => {
+  for (let i = 1; i <= TOTAL_PHOTOS; i++) {
+    const src = 'assets/images/photo' + i + '.jpg';
     const card = document.createElement('div');
     card.className = 'gallery-card';
+
     const img = document.createElement('img');
-    img.alt = 'Memory photo ' + (i + 1);
+    img.alt = 'Memory photo ' + i;
     img.decoding = 'async';
     img.width = 600;
     img.height = 600;
 
-    // Bug fixed: listeners must be attached BEFORE a src is ever set.
-    // An <img> with no src is reported as "complete" by the browser
-    // (there's nothing pending to load), so checking img.complete on
-    // these before assigning dataset.src → real src was wrongly
-    // marking them "loaded" instantly and skipping the real 'load'
-    // listener — the photo would finish downloading fine (which is
-    // why long-press → preview showed it correctly) but the fade-in
-    // class was already applied with no image behind it, and nothing
-    // was left listening for the real load, so it stayed invisible.
+    // Listeners attached BEFORE src is set, so we never miss the
+    // 'load'/'error' event no matter how fast it fires (e.g. cached).
     img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
     img.addEventListener('error', () => img.classList.add('loaded', 'broken'), { once: true });
 
-    // first few load right away (they're near the top of the section,
-    // reachable within a couple of scroll flicks) — the rest wait for
-    // the observer below so we're not firing 20+ multi-MB requests
-    // simultaneously the instant the grid appears
-    if (i < 4) {
-      img.src = src;
-    } else {
-      img.dataset.src = src;
-      lazyImgs.push(img);
-    }
+    // First 4 load eagerly (top of the section, visible almost
+    // immediately); everything else uses the browser's native lazy
+    // loading — reliable under any scroll speed, unlike a hand-rolled
+    // IntersectionObserver.
+    img.loading = i <= 4 ? 'eager' : 'lazy';
+    img.src = src;
+
     card.appendChild(img);
     frag.appendChild(card);
-  });
-  grid.appendChild(frag);
-
-  if (lazyImgs.length) {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (!entry.isIntersecting) return;
-        const img = entry.target;
-        img.src = img.dataset.src;
-        io.unobserve(img);
-      });
-    }, { rootMargin: '600px 0px', threshold: 0.01 });
-    lazyImgs.forEach(img => io.observe(img));
   }
+  grid.appendChild(frag);
 }
 
 /* ---------- Envelope / memory letter ---------- */
